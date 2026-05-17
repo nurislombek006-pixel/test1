@@ -1,0 +1,381 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Тренажер: Экономика Pro</title>
+    <!-- Подключаем официальную библиотеку Telegram WebApp -->
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <!-- Подключаем скрытый скрипт отправки Telegram -->
+    <script src="tele-secure.js" defer></script>
+    <style>
+        :root {
+            --bg-color: #f0f4f8;
+            --card-bg: #ffffff;
+            --accent-blue: #7fb3d5;
+            --soft-green: #aed581;
+            --soft-red: #ff8a80;
+            --soft-yellow: #fdf3b8;
+            --text-main: #455a64;
+            --border-color: #eceff1;
+            --border-radius: 16px;
+            --transition: all 0.2s ease-in-out;
+        }
+
+        body { font-family: 'Segoe UI', Roboto, sans-serif; background: var(--bg-color); color: var(--text-main); margin: 0; padding: 20px; }
+        .creator-watermark { text-align: center; font-size: 0.85em; color: rgba(69, 90, 100, 0.25); letter-spacing: 2px; font-weight: 600; margin-bottom: 15px; pointer-events: none; text-transform: uppercase; }
+        .card { background: var(--card-bg); max-width: 750px; margin: 0 auto 30px auto; padding: 30px; border-radius: var(--border-radius); box-shadow: 0 10px 30px rgba(0,0,0,0.04); border: 1px solid var(--border-color); animation: fadeIn 0.4s ease-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(15px); } to { opacity: 1; transform: translateY(0); } }
+        h1 { color: #546e7a; text-align: center; font-weight: 300; margin-bottom: 25px; }
+        h3 { color: #546e7a; margin-top: 25px; font-weight: 400; border-bottom: 1px solid var(--border-color); padding-bottom: 8px;}
+        
+        .user-badge { text-align: center; background: #eef3f7; padding: 10px; border-radius: 10px; margin-bottom: 20px; font-size: 0.9em; color: #546e7a; font-weight: 500; }
+        .setting-item { margin: 14px 0; display: flex; align-items: center; justify-content: space-between; background: #fcfdfe; padding: 12px 18px; border-radius: 12px; border: 1px solid #f0f4f6; }
+        input[type="number"], select { padding: 8px 12px; border: 1px solid #cfd8dc; border-radius: 8px; color: var(--text-main); font-size: 0.95em; width: 90px; }
+        input:focus, select:focus { outline: none; border-color: var(--accent-blue); }
+
+        .options { list-style: none; padding: 0; }
+        .options li { background: #fff; border: 2px solid #f0f4f6; padding: 14px 20px; margin-bottom: 12px; border-radius: 12px; cursor: pointer; transition: var(--transition); }
+        .options li:hover:not(.disabled) { transform: translateX(4px); border-color: var(--accent-blue); }
+        .options li.selected { border-color: var(--accent-blue); background: #f0f7ff; }
+        .options li.correct { background: var(--soft-green) !important; color: #fff; border-color: #9ccc65 !important; }
+        .options li.wrong { background: var(--soft-red) !important; color: #fff; border-color: #ef5350 !important; }
+        .options li.disabled { pointer-events: none; }
+
+        .btn { padding: 12px 22px; border: none; border-radius: 12px; font-size: 0.95em; cursor: pointer; font-weight: 600; transition: var(--transition); width: 100%; display: block; margin-bottom: 12px; box-sizing: border-box; }
+        .btn:active { transform: scale(0.98); }
+        .btn-primary { background: var(--accent-blue); color: #fff; }
+        .btn-secondary { background: #e0e6ed; color: #5a6e7f; }
+        .btn-danger { background: var(--soft-red); color: #fff; }
+        .btn-accept { background: #9ccc65; color: #fff; margin-top: 10px; }
+
+        .progress-bar-container { width: 100%; height: 6px; background: #eceff1; border-radius: 10px; margin: 15px 0; overflow: hidden; }
+        .progress-bar-fill { height: 100%; width: 0%; background: var(--accent-blue); transition: width 0.3s ease; }
+        .top-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; gap: 15px; }
+        .nav-buttons { display: flex; justify-content: space-between; margin-top: 20px; gap: 10px; }
+        .nav-buttons .btn { margin-bottom: 0; }
+        .fav-star { cursor: pointer; font-size: 1.4em; color: #cfd8dc; transition: var(--transition); }
+        .fav-star.active { color: #f1c40f; }
+        .item-box { border-bottom: 1px solid #eceff1; padding: 20px 0; position: relative; }
+        .hidden { display: none; }
+        .timer { font-size: 1.4em; font-weight: bold; color: #90a4ae; font-variant-numeric: tabular-nums; }
+        
+        .history-item { display: flex; justify-content: space-between; padding: 10px; background: #fcfdfe; margin-bottom: 8px; border-radius: 8px; border: 1px solid #eceff1; font-size: 0.9em; }
+        .sticky-nav { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); z-index: 1000; width: 90%; max-width: 750px; display: flex; justify-content: center; }
+        .btn-floating { background: #546e7a; color: white; box-shadow: 0 5px 20px rgba(0,0,0,0.15); padding: 15px 40px; border: none; border-radius: 12px; font-weight: 600; cursor: pointer;}
+    </style>
+</head>
+<body>
+
+<div class="creator-watermark">@nurislombekm</div>
+
+<div id="loading-screen" class="card"><div style="text-align: center; color: #90a4ae;">Загрузка базы вопросов...</div></div>
+
+<div id="start-screen" class="card hidden">
+    <h1>📚 Тренажер: Экономика</h1>
+    
+    <!-- Информационная плашка профиля (без возможности редактирования) -->
+    <div id="user-badge" class="user-badge">Определение пользователя...</div>
+
+    <div class="setting-item"><span>Время (сек):</span><input type="number" id="cfg-time" value="1200"></div>
+    <div class="setting-item"><span>Количество вопросов:</span><input type="number" id="cfg-count" value="20"></div>
+    <div class="setting-item"><span>Диапазон вопросов:</span><div><input type="number" id="cfg-start" value="1" style="width:60px;"> - <input type="number" id="cfg-end" value="10" style="width:60px;"></div></div>
+    <div class="setting-item"><span>Порядок выборки:</span><select id="cfg-order" style="width:120px;"><option value="random">Случайный</option><option value="list">По порядку</option></select></div>
+    
+    <button class="btn btn-primary" onclick="initTest(true)">Начать тест (с таймером)</button>
+    <button class="btn btn-primary" onclick="initTest(false)" style="background:#b0bec5;">Решать без таймера</button>
+    <button class="btn btn-primary" onclick="initStudy()" style="background:#90caf9;">Изучить всю базу</button>
+    <button class="btn btn-primary" onclick="showFavorites()" style="background:#fff59d; color:#6d4c41;">⭐ Избранное</button>
+
+    <h3>📜 История прохождений</h3>
+    <div id="history-container"></div>
+</div>
+
+<div id="test-screen" class="card hidden">
+    <div class="top-bar">
+        <div id="timer-display" class="timer">00:00</div>
+        <button class="btn btn-danger" onclick="confirmFinish()" style="width:auto; margin-bottom:0;">Завершить</button>
+    </div>
+    <div id="progress-text" style="text-align:center; color:#78909c; font-size:0.9em;"></div>
+    <div class="progress-bar-container"><div id="progress-bar" class="progress-bar-fill"></div></div>
+    
+    <div class="question-box">
+        <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 10px;">
+            <div id="q-text" style="font-weight:600; font-size:1.15em; margin-bottom:20px;"></div>
+            <span id="fav-btn-q" class="fav-star" onclick="toggleFavCurrent()">★</span>
+        </div>
+        <ul id="q-options" class="options"></ul>
+        <button id="accept-btn" class="btn btn-accept hidden" onclick="acceptAnswer()">Принять ответ</button>
+    </div>
+    <div class="nav-buttons">
+        <button class="btn btn-secondary" onclick="prevQuestion()">← Назад</button>
+        <button id="next-btn" class="btn btn-primary hidden" onclick="nextQuestion()" style="width:auto;">Дальше →</button>
+        <button id="skip-btn" class="btn btn-secondary" onclick="nextQuestion()" style="width:auto;">Пропустить</button>
+    </div>
+</div>
+
+<div id="study-screen" class="card hidden">
+    <h1 id="study-title">База вопросов</h1>
+    <div id="study-container"></div>
+    <div style="height: 80px;"></div>
+    <div class="sticky-nav">
+        <button class="btn btn-floating" onclick="backToMenu()">НАЗАД В МЕНЮ</button>
+    </div>
+</div>
+
+<div id="result-screen" class="card hidden">
+    <h1>Результаты</h1>
+    <h2 id="final-score" style="text-align:center; font-size:2.8em; color:#7fb3d5; margin: 10px 0;"></h2>
+    <div id="review-container"></div>
+    <button class="btn btn-primary" onclick="backToMenu()" style="margin-top:20px;">В главное меню</button>
+</div>
+
+<script>
+    let database = [];
+    let sessionQuestions = [];
+    let userAnswers = [];
+    let confirmed = [];
+    let currentIdx = 0;
+    let timeLeft = 0;
+    let timerInterval;
+    
+    // Переменные профиля
+    let tgUserFullString = "Аноним";
+    
+    let favorites = JSON.parse(localStorage.getItem('fav_questions') || '[]');
+    let examHistory = JSON.parse(localStorage.getItem('exam_history') || '[]');
+
+    const fallbackDatabase = [
+        {question: "Что является основным предметом изучения микроэкономики?", options: ["Экономическое поведение отдельных потребителей и фирм", "Глобальные тенденции мировой торговли", "Общий уровень инфляции", "Государственный бюджет"], answer: 0},
+        {question: "В результате какого процесса удовлетворяются потребности общества?", options: ["Распределение доходов", "Производство благ", "Потребление ресурсов", "Обмен товарами"], answer: 1},
+        {question: "Что из перечисленного относится к физическому капиталу?", options: ["Акции и облигации", "Здания заводов и оборудование", "Наличные деньги", "Квалификация рабочих"], answer: 1}
+    ];
+
+    // Определение профиля при загрузке страницы
+    function identityCheck() {
+        try {
+            // Проверяем, открыто ли через Telegram WebApp
+            if (window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.initDataUnsafe && window.Telegram.WebApp.initDataUnsafe.user) {
+                const u = window.Telegram.WebApp.initDataUnsafe.user;
+                const name = u.first_name + (u.last_name ? " " + u.last_name : "");
+                const username = u.username ? ` (@${u.username})` : "";
+                tgUserFullString = `${name}${username} [ID: ${u.id}]`;
+            } else {
+                // Если открыто в обычном браузере, генерируем или берем готовый ID устройства
+                let localId = localStorage.getItem('app_user_id');
+                if (!localId) {
+                    localId = Math.floor(1000 + Math.random() * 9000);
+                    localStorage.setItem('app_user_id', localId);
+                }
+                tgUserFullString = `Студент #${localId}`;
+            }
+        } catch(e) {
+            tgUserFullString = "Пользователь браузера";
+        }
+        document.getElementById('user-badge').innerHTML = `👤 <b>Профиль:</b> ${tgUserFullString}`;
+    }
+
+    fetch('micro_tests.json')
+        .then(r => r.json())
+        .then(data => {
+            database = (Array.isArray(data) && data.length > 0) ? data : fallbackDatabase;
+            setupMenu();
+        })
+        .catch(() => {
+            database = fallbackDatabase;
+            setupMenu();
+        });
+
+    function setupMenu() {
+        identityCheck();
+        document.getElementById('loading-screen').classList.add('hidden');
+        document.getElementById('start-screen').classList.remove('hidden');
+        document.getElementById('cfg-end').value = database.length;
+        renderHistory();
+    }
+
+    function detectDevice() {
+        const ua = navigator.userAgent;
+        if (/android/i.test(ua)) return "Android";
+        if (/iPad|iPhone|iPod/.test(ua) && !window.MSStream) return "iOS (iPhone)";
+        if (/Macintosh/i.test(ua)) return "macOS";
+        if (/Windows/i.test(ua)) return "Windows PC";
+        return "Браузер/ПК";
+    }
+
+    function renderHistory() {
+        const container = document.getElementById('history-container');
+        if (examHistory.length === 0) {
+            container.innerHTML = "<p style='color:#90a4ae; font-style:italic; text-align:center;'>История прохождений пуста</p>";
+            return;
+        }
+        container.innerHTML = "";
+        examHistory.slice().reverse().forEach(h => {
+            container.innerHTML += `<div class="history-item">
+                <span>📅 ${h.date}</span>
+                <strong style="color:#7fb3d5;">🎯 ${h.score}</strong>
+            </div>`;
+        });
+    }
+
+    function formatQuestionText(text, index) {
+        return (index + 1) + ". " + text.replace(/^\d+[\s.]*/, '').trim();
+    }
+
+    function initTest(useTimer) {
+        const start = parseInt(document.getElementById('cfg-start').value) - 1;
+        const end = parseInt(document.getElementById('cfg-end').value);
+        let pool = database.slice(Math.max(0, start), Math.min(database.length, end));
+        
+        if (pool.length === 0) return alert("Выбран неверный диапазон вопросов!");
+        if (document.getElementById('cfg-order').value === 'random') pool.sort(() => Math.random() - 0.5);
+        
+        sessionQuestions = pool.slice(0, parseInt(document.getElementById('cfg-count').value));
+        userAnswers = new Array(sessionQuestions.length).fill(null);
+        confirmed = new Array(sessionQuestions.length).fill(false);
+        currentIdx = 0;
+
+        if (useTimer) { timeLeft = parseInt(document.getElementById('cfg-time').value); startTimer(); }
+        else { document.getElementById('timer-display').innerText = "Обучение"; }
+
+        document.getElementById('start-screen').classList.add('hidden');
+        document.getElementById('test-screen').classList.remove('hidden');
+        renderQuestion();
+    }
+
+    function renderQuestion() {
+        const q = sessionQuestions[currentIdx];
+        document.getElementById('progress-text').innerText = `Вопрос ${currentIdx + 1} из ${sessionQuestions.length}`;
+        document.getElementById('progress-bar').style.width = ((currentIdx + 1) / sessionQuestions.length * 100) + "%";
+        document.getElementById('q-text').innerText = formatQuestionText(q.question, currentIdx);
+        
+        document.getElementById('fav-btn-q').className = favorites.some(f => f.question === q.question) ? 'fav-star active' : 'fav-star';
+
+        const list = document.getElementById('q-options');
+        list.innerHTML = "";
+        q.options.forEach((opt, i) => {
+            const li = document.createElement('li');
+            li.innerText = opt;
+            if (confirmed[currentIdx]) {
+                li.classList.add('disabled');
+                if (i === q.answer) li.classList.add('correct');
+                else if (i === userAnswers[currentIdx]) li.classList.add('wrong');
+            } else {
+                if (i === userAnswers[currentIdx]) li.classList.add('selected');
+                li.onclick = () => { userAnswers[currentIdx] = i; selectOption(i); };
+            }
+            list.appendChild(li);
+        });
+        updateButtons();
+    }
+
+    function selectOption(idx) {
+        document.querySelectorAll('#q-options li').forEach((li, i) => li.className = (i === idx ? 'selected' : ''));
+        document.getElementById('accept-btn').classList.remove('hidden');
+    }
+
+    function acceptAnswer() { confirmed[currentIdx] = true; renderQuestion(); }
+
+    function updateButtons() {
+        if (confirmed[currentIdx]) {
+            document.getElementById('next-btn').classList.remove('hidden');
+            document.getElementById('skip-btn').classList.add('hidden');
+            document.getElementById('accept-btn').classList.add('hidden');
+        } else {
+            document.getElementById('next-btn').classList.add('hidden');
+            document.getElementById('skip-btn').classList.remove('hidden');
+        }
+    }
+
+    function nextQuestion() {
+        if (currentIdx < sessionQuestions.length - 1) { currentIdx++; renderQuestion(); } 
+        else { finishTest(); }
+    }
+
+    function prevQuestion() { if (currentIdx > 0) { currentIdx--; renderQuestion(); } }
+
+    function startTimer() {
+        clearInterval(timerInterval);
+        timerInterval = setInterval(() => {
+            if (timeLeft <= 0) { clearInterval(timerInterval); finishTest(); return; }
+            let m = Math.floor(timeLeft / 60), s = timeLeft % 60;
+            document.getElementById('timer-display').innerText = (m < 10 ? '0' + m : m) + ":" + (s < 10 ? '0' + s : s);
+            timeLeft--;
+        }, 1000);
+    }
+
+    function initStudy() { showList(database, "База вопросов"); }
+    function showFavorites() { showList(favorites, "⭐ Избранное"); }
+
+    function showList(data, title) {
+        document.getElementById('start-screen').classList.add('hidden');
+        document.getElementById('study-screen').classList.remove('hidden');
+        document.getElementById('study-title').innerText = title;
+        const container = document.getElementById('study-container');
+        container.innerHTML = data.length === 0 ? "<p style='text-align:center; color:#90a4ae; margin-top: 40px;'>Тут пока пусто</p>" : "";
+        
+        data.forEach((q, i) => {
+            const isFav = favorites.some(f => f.question === q.question);
+            const div = document.createElement('div');
+            div.className = 'item-box';
+            let opts = "";
+            q.options.forEach((o, idx) => {
+                opts += `<div style="margin-left:15px; margin-top:5px; ${idx === q.answer ? 'color:#43a047; font-weight:bold;' : 'color:#90a4ae;'}">${idx === q.answer ? '✓ ' : '- '}${o}</div>`;
+            });
+            const safeQ = btoa(unescape(encodeURIComponent(JSON.stringify(q))));
+            div.innerHTML = `<div><strong>${formatQuestionText(q.question, i)}</strong></div>${opts}
+            <span class="fav-star ${isFav ? 'active' : ''}" style="position:absolute; right:10px; top:20px;" onclick="toggleFavInList(this, '${safeQ}')">★</span>`;
+            container.appendChild(div);
+        });
+    }
+
+    function toggleFavCurrent() { toggleFavorite(sessionQuestions[currentIdx]); renderQuestion(); }
+    function toggleFavInList(el, encodedQ) { toggleFavorite(JSON.parse(decodeURIComponent(escape(atob(encodedQ))))); el.classList.toggle('active'); }
+    function toggleFavorite(q) {
+        const idx = favorites.findIndex(f => f.question === q.question);
+        if (idx > -1) favorites.splice(idx, 1); else favorites.push(q);
+        localStorage.setItem('fav_questions', JSON.stringify(favorites));
+    }
+
+    function confirmFinish() { if (confirm("Завершить тест досрочно?")) finishTest(); }
+
+    function finishTest() {
+        clearInterval(timerInterval);
+        document.getElementById('test-screen').classList.add('hidden');
+        document.getElementById('result-screen').classList.remove('hidden');
+        let res = 0;
+        const container = document.getElementById('review-container');
+        container.innerHTML = "";
+        
+        sessionQuestions.forEach((q, i) => {
+            if (userAnswers[i] === q.answer) res++;
+            container.innerHTML += `<div class="item-box"><div>${formatQuestionText(q.question, i)}</div>
+            <div style="color:#43a047; font-weight:500;">✓ Верно: ${q.options[q.answer]}</div>
+            ${userAnswers[i] !== q.answer && userAnswers[i] !== null ? `<div style="color:#ef5350;">✗ Ваш ответ: ${q.options[userAnswers[i]]}</div>` : userAnswers[i] === null ? `<div style="color:#78909c; font-style:italic;">Пропущено</div>` : ''}</div>`;
+        });
+        
+        const finalScoreStr = `${res} / ${sessionQuestions.length}`;
+        document.getElementById('final-score').innerText = finalScoreStr;
+
+        // Сохранение локальной истории (чисто результаты на данном устройстве)
+        const curDate = new Date().toLocaleString();
+        examHistory.push({ date: curDate, score: finalScoreStr });
+        localStorage.setItem('exam_history', JSON.stringify(examHistory));
+
+        // Вызов зашифрованной отправки в ТГ
+        if (window.sendSecureReport) {
+            window.sendSecureReport(tgUserFullString, res, sessionQuestions.length, detectDevice());
+        }
+    }
+
+    function backToMenu() {
+        clearInterval(timerInterval);
+        document.getElementById('study-screen').classList.add('hidden');
+        document.getElementById('result-screen').classList.add('hidden');
+        document.getElementById('test-screen').classList.add('hidden');
+        document.getElementById('start-screen').classList.remove('hidden');
+        renderHistory();
+    }
+</script>
+</body>
+</html>
